@@ -44,6 +44,12 @@
             align-items: center;
             min-height: 40px;
         }
+        .weekend {
+            background-color: #e8f5e9;  /* Light green background for weekends */
+        }
+        .public-holiday {
+            background-color: #ffebee;  /* Light red background for public holidays */
+        }
         .day-number {
             font-size: 1em;
         }
@@ -116,26 +122,98 @@
             for (let i = 1; i <= daysInMonth; i++) {
                 const dayDiv = document.createElement('div');
                 dayDiv.className = 'day';
+                
+                // Check for weekend and public holiday
+                const currentDate = new Date(date.getFullYear(), date.getMonth(), i);
+                const dayOfWeek = currentDate.getDay();
+                const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                const isHoliday = isNSWPublicHoliday(currentDate);
+
+                if (isWeekend) {
+                    dayDiv.classList.add('weekend');
+                }
+                if (isHoliday) {
+                    dayDiv.classList.add('public-holiday');
+                }
 
                 const dayNumber = document.createElement('span');
                 dayNumber.className = 'day-number';
                 dayNumber.textContent = i;
                 dayDiv.appendChild(dayNumber);
 
-                const currentDate = new Date(date.getFullYear(), date.getMonth(), i);
                 currentDate.setHours(0, 0, 0, 0);
-                const offset = Math.floor((currentDate - selectedDate) / (1000 * 60 * 60 * 24));
+                
+                // Only calculate and show offset for non-weekend days
+                if (!isWeekend) {
+                    // Calculate offset excluding weekends
+                    let offset = 0;
+                    let tempDate = new Date(selectedDate);
+                    const endDate = new Date(currentDate);
+                    
+                    while (tempDate < endDate || tempDate > endDate) {
+                        const dayOfWeek = tempDate.getDay();
+                        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                            offset += (tempDate < endDate) ? 1 : -1;
+                        }
+                        tempDate.setDate(tempDate.getDate() + (tempDate < endDate ? 1 : -1));
+                    }
 
-                const offsetNumber = document.createElement('span');
-                offsetNumber.className = 'offset-number';
-                offsetNumber.textContent = offset;
-                dayDiv.appendChild(offsetNumber);
+                    const offsetNumber = document.createElement('span');
+                    offsetNumber.className = 'offset-number';
+                    offsetNumber.textContent = offset;
+                    dayDiv.appendChild(offsetNumber);
+                }
 
                 daysGrid.appendChild(dayDiv);
             }
 
             monthDiv.appendChild(daysGrid);
             return monthDiv;
+        }
+
+        function isNSWPublicHoliday(date) {
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const day = date.getDate();
+            
+            // Fixed date holidays
+            if ((month === 0 && day === 1) ||  // New Year's Day
+                (month === 0 && day === 26) || // Australia Day
+                (month === 3 && day === 25) || // Anzac Day
+                (month === 11 && day === 25) || // Christmas Day
+                (month === 11 && day === 26)) { // Boxing Day
+                return true;
+            }
+
+            // Easter holidays (would need to be calculated for each year)
+            const easterDates = {
+                2024: [[3, 29], [3, 30], [3, 31], [4, 1]], // Good Friday, Easter Saturday, Easter Sunday, Easter Monday
+                2025: [[4, 18], [4, 19], [4, 20], [4, 21]],
+                // Add more years as needed
+            };
+
+            if (easterDates[year]) {
+                if (easterDates[year].some(([m, d]) => month === m && day === d)) {
+                    return true;
+                }
+            }
+
+            // Queen's Birthday (second Monday in June)
+            const firstOfJune = new Date(year, 5, 1);
+            const daysUntilFirstMonday = (8 - firstOfJune.getDay()) % 7;
+            const secondMonday = daysUntilFirstMonday + 7 + 1;
+            if (month === 5 && day === secondMonday) {
+                return true;
+            }
+
+            // Labour Day (first Monday in October)
+            const firstOfOct = new Date(year, 9, 1);
+            const firstMonday = ((8 - firstOfOct.getDay()) % 7) + 1;
+            if (month === 9 && day === firstMonday) {
+                return true;
+            }
+
+            return false;
         }
 
         // Initialize calendar with current date
